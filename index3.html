@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 貪食蛇遊戲</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #fff;
+            background-color: #000; /* 黑色背景 */
+        }
+        
+        .score {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .game-over {
+            color: #ff0000;
+            font-size: 32px;
+            font-weight: bold;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .restart-btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #ff0000;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .restart-btn:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score">分數: <span id="score">0</span></div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="game-over" id="gameOver">遊戲結束!</div>
+        <button class="restart-btn" id="restartBtn">重新開始</button>
+    </div>
+
+    <script>
+        // 獲取畫布和上下文
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('gameOver');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // 遊戲設定
+        const gridSize = 20; // 網格大小
+        const tileCount = canvas.width / gridSize; // 網格數量
+
+        // 蛇的屬性
+        let snake = [
+            { x: 10, y: 10 } // 初始位置
+        ];
+        let dx = 0; // x方向速度
+        let dy = 0; // y方向速度
+        let score = 0;
+
+        // 蘋果屬性
+        let apple = {
+            x: Math.floor(Math.random() * tileCount),
+            y: Math.floor(Math.random() * tileCount)
+        };
+
+        // 遊戲狀態
+        let gameRunning = true;
+
+        // 鍵盤控制
+        document.addEventListener('keydown', changeDirection);
+        restartBtn.addEventListener('click', restartGame);
+
+        // 開始遊戲循環
+        gameLoop();
+
+        // 遊戲主循環
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            setTimeout(() => {
+                clearCanvas();
+                moveSnake();
+                drawApple();
+                drawSnake();
+                checkCollision();
+                gameLoop();
+            }, 100); // 控制遊戲速度，數值越小速度越快
+        }
+
+        // 清空畫布
+        function clearCanvas() {
+            ctx.fillStyle = '#000'; // 黑色背景
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 繪製蛇
+        function drawSnake() {
+            ctx.fillStyle = '#00ff00'; // 蛇的顏色(綠色)
+            snake.forEach(segment => {
+                ctx.fillRect(
+                    segment.x * gridSize, 
+                    segment.y * gridSize, 
+                    gridSize - 1, // 減1是為了讓蛇的節段之間有間隙
+                    gridSize - 1
+                );
+            });
+        }
+
+        // 繪製蘋果
+        function drawApple() {
+            ctx.fillStyle = '#ff0000'; // 蘋果顏色(紅色)
+            ctx.fillRect(
+                apple.x * gridSize, 
+                apple.y * gridSize, 
+                gridSize - 1, 
+                gridSize - 1
+            );
+        }
+
+        // 移動蛇
+        function moveSnake() {
+            // 創建新的蛇頭
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            // 將新頭添加到蛇的開頭
+            snake.unshift(head);
+
+            // 檢查是否吃到蘋果
+            if (head.x === apple.x && head.y === apple.y) {
+                // 加分
+                score += 10;
+                scoreElement.textContent = score;
+                // 生成新蘋果
+                generateNewApple();
+            } else {
+                // 沒吃到蘋果就刪除最後一段(保持長度不變)
+                snake.pop();
+            }
+        }
+
+        // 改變移動方向
+        function changeDirection(event) {
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+
+            const keyPressed = event.keyCode;
+            
+            // 防止蛇直接反轉方向
+            const goingUp = dy === -1;
+            const goingDown = dy === 1;
+            const goingRight = dx === 1;
+            const goingLeft = dx === -1;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -1;
+                dy = 0;
+            }
+            if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -1;
+            }
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = 1;
+                dy = 0;
+            }
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = 1;
+            }
+        }
+
+        // 生成新蘋果
+        function generateNewApple() {
+            // 確保蘋果不會生成在蛇身上
+            let newApple;
+            while (newApple == null || isOnSnake(newApple)) {
+                newApple = {
+                    x: Math.floor(Math.random() * tileCount),
+                    y: Math.floor(Math.random() * tileCount)
+                };
+            }
+            apple = newApple;
+        }
+
+        // 檢查蘋果是否在蛇身上
+        function isOnSnake(position) {
+            return snake.some(segment => segment.x === position.x && segment.y === position.y);
+        }
+
+        // 碰撞檢測
+        function checkCollision() {
+            // 邊界碰撞
+            if (
+                snake[0].x < 0 || 
+                snake[0].x >= tileCount || 
+                snake[0].y < 0 || 
+                snake[0].y >= tileCount
+            ) {
+                endGame();
+            }
+
+            // 自撞檢測
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[0].x === snake[i].x && snake[0].y === snake[i].y) {
+                    endGame();
+                }
+            }
+        }
+
+        // 結束遊戲
+        function endGame() {
+            gameRunning = false;
+            gameOverElement.style.display = 'block';
+            restartBtn.style.display = 'block';
+        }
+
+        // 重新開始遊戲
+        function restartGame() {
+            snake = [{ x: 10, y: 10 }];
+            dx = 0;
+            dy = 0;
+            score = 0;
+            scoreElement.textContent = score;
+            generateNewApple();
+            gameRunning = true;
+            gameOverElement.style.display = 'none';
+            restartBtn.style.display = 'none';
+            gameLoop();
+        }
+    </script>
+</body>
+</html>
